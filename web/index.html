@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password Strength Checker</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+    .subtitle {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .input-wrapper input {
+      width: 100%;
+      padding: 14px 50px 14px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      background: #1a1d27;
+      border: 2px solid #2a2d3a;
+      border-radius: 10px;
+      color: #fff;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-wrapper input:focus {
+      border-color: #5b6eea;
+    }
+    .toggle-btn {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 1.2rem;
+    }
+
+    /* Strength Bar */
+    .bar-wrapper {
+      margin-bottom: 20px;
+    }
+    .bar-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+    }
+    .bar-label .strength-text {
+      font-weight: 700;
+      transition: color 0.3s;
+    }
+    .bar-track {
+      width: 100%;
+      height: 8px;
+      background: #1a1d27;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.4s ease, background 0.4s ease;
+    }
+
+    /* Entropy */
+    .entropy {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    /* Checks */
+    .checks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .check-item {
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #1a1d27;
+      border-radius: 8px;
+      transition: opacity 0.2s;
+    }
+    .check-item.pass { color: #4ade80; }
+    .check-item.fail { color: #f87171; }
+
+    /* Feedback */
+    .feedback {
+      background: #1a1d27;
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .feedback h3 {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .feedback li {
+      font-size: 0.88rem;
+      margin-bottom: 6px;
+      padding-left: 4px;
+      list-style: none;
+    }
+    .feedback li::before {
+      content: "→ ";
+      color: #5b6eea;
+    }
+
+    .hidden { display: none; }
+
+    /* Color classes */
+    .c-vweak  { color: #ef4444; }
+    .c-weak   { color: #f97316; }
+    .c-fair   { color: #eab308; }
+    .c-strong { color: #22c55e; }
+    .c-vstrong{ color: #06b6d4; }
+
+    .bg-vweak  { background: #ef4444; }
+    .bg-weak   { background: #f97316; }
+    .bg-fair   { background: #eab308; }
+    .bg-strong { background: #22c55e; }
+    .bg-vstrong{ background: #06b6d4; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 Password Strength Checker</h1>
+    <p class="subtitle">Type a password to analyze its security</p>
+
+    <div class="input-wrapper">
+      <input type="password" id="pw" placeholder="Enter a password..." autocomplete="off">
+      <button class="toggle-btn" id="toggleBtn" title="Show/hide password">👁</button>
+    </div>
+
+    <div id="results" class="hidden">
+      <div class="bar-wrapper">
+        <div class="bar-label">
+          <span id="scoreText">0/100</span>
+          <span id="strengthText" class="strength-text">—</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" id="barFill"></div>
+        </div>
+      </div>
+
+      <div class="entropy" id="entropyText"></div>
+
+      <div class="checks" id="checks"></div>
+
+      <div class="feedback" id="feedbackBox">
+        <h3>Suggestions</h3>
+        <ul id="feedbackList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── Common Passwords ─────────────────────────────────
+    const COMMON = new Set([
+      "123456","password","12345678","qwerty","123456789","12345","1234",
+      "111111","1234567","dragon","123123","baseball","abc123","football",
+      "monkey","letmein","shadow","master","666666","qwertyuiop","123321",
+      "mustang","1234567890","superman","1qaz2wsx","trustno1","iloveyou",
+      "admin","password1","welcome","hello","passw0rd","test123","admin123",
+      "letmein123","p@ssword","123abc","changeme","princess","sunshine"
+    ]);
+
+    // ─── Checker Logic ────────────────────────────────────
+    function calcEntropy(pw) {
+      let pool = 0;
+      if (/[a-z]/.test(pw)) pool += 26;
+      if (/[A-Z]/.test(pw)) pool += 26;
+      if (/[0-9]/.test(pw)) pool += 10;
+      if (/[^a-zA-Z0-9]/.test(pw)) pool += 32;
+      return pool === 0 ? 0 : pw.length * Math.log2(pool);
+    }
+
+    function checkPatterns(pw) {
+      const warns = [];
+      if (/(.)\1{2,}/.test(pw)) warns.push("Repeated characters detected");
+      const lower = pw.toLowerCase();
+      const kbPatterns = ["qwerty","asdf","zxcv","1234","qazwsx"];
+      for (const p of kbPatterns) {
+        if (lower.includes(p)) { warns.push(`Keyboard pattern: "${p}"`); break; }
+      }
+      for (let i = 0; i < pw.length - 2; i++) {
+        if (/\d{3}/.test(pw.slice(i, i + 3))) {
+          const n = [+pw[i], +pw[i+1], +pw[i+2]];
+          if (n[1]-n[0]===1 && n[2]-n[1]===1) { warns.push("Sequential numbers"); break; }
+        }
+      }
+      return warns;
+    }
+
+    function checkPassword(pw) {
+      if (!pw) return null;
+      const checks = {
+        length:       pw.length >= 8,
+        uppercase:    /[A-Z]/.test(pw),
+        lowercase:    /[a-z]/.test(pw),
+        digits:       /[0-9]/.test(pw),
+        special:      /[^a-zA-Z0-9]/.test(pw),
+        notCommon:    !COMMON.has(pw.toLowerCase()),
+      };
+
+      let score = 0;
+      const feedback = [];
+
+      // Length
+      if (pw.length >= 16) score += 30;
+      else if (pw.length >= 12) score += 25;
+      else if (pw.length >= 8) score += 15;
+      else if (pw.length >= 6) score += 5;
+      if (pw.length < 8) feedback.push("Use at least 8 characters");
+
+      // Variety
+      if (checks.uppercase) score += 10; else feedback.push("Add uppercase letters (A–Z)");
+      if (checks.lowercase) score += 10; else feedback.push("Add lowercase letters (a–z)");
+      if (checks.digits)    score += 10; else feedback.push("Add numbers (0–9)");
+      if (checks.special)   score += 10; else feedback.push("Add special characters (!@#$)");
+
+      // Entropy
+      const entropy = calcEntropy(pw);
+      if (entropy >= 60) score += 20;
+      else if (entropy >= 40) score += 10;
+      else if (entropy >= 28) score += 5;
+
+      // Common
+      if (!checks.notCommon) {
+        score = Math.max(score - 40, 0);
+        feedback.unshift("This is a commonly used password!");
+      }
+
+      // Patterns
+      const patterns = checkPatterns(pw);
+      score = Math.max(score - patterns.length * 10, 0);
+      feedback.push(...patterns);
+
+      // Unique ratio
+      const unique = new Set(pw).size / pw.length;
+      if (unique >= 0.8) score += 10;
+      else if (unique >= 0.6) score += 5;
+
+      score = Math.min(score, 100);
+
+      let strength, cls;
+      if (score >= 80)      { strength = "Very Strong"; cls = "vstrong"; }
+      else if (score >= 60) { strength = "Strong";      cls = "strong"; }
+      else if (score >= 40) { strength = "Fair";        cls = "fair"; }
+      else if (score >= 20) { strength = "Weak";        cls = "weak"; }
+      else                  { strength = "Very Weak";   cls = "vweak"; }
+
+      if (!feedback.length) feedback.push("Great password!");
+
+      return { score, strength, cls, entropy: entropy.toFixed(1), checks, feedback };
+    }
+
+    // ─── DOM ──────────────────────────────────────────────
+    const pwInput      = document.getElementById("pw");
+    const results      = document.getElementById("results");
+    const barFill      = document.getElementById("barFill");
+    const scoreText    = document.getElementById("scoreText");
+    const strengthText = document.getElementById("strengthText");
+    const entropyText  = document.getElementById("entropyText");
+    const checksEl     = document.getElementById("checks");
+    const feedbackList = document.getElementById("feedbackList");
+    const toggleBtn    = document.getElementById("toggleBtn");
+
+    toggleBtn.addEventListener("click", () => {
+      const isPassword = pwInput.type === "password";
+      pwInput.type = isPassword ? "text" : "password";
+      toggleBtn.textContent = isPassword ? "🙈" : "👁";
+    });
+
+    pwInput.addEventListener("input", () => {
+      const r = checkPassword(pwInput.value);
+      if (!r) { results.classList.add("hidden"); return; }
+      results.classList.remove("hidden");
+
+      barFill.style.width = r.score + "%";
+      barFill.className = `bar-fill bg-${r.cls}`;
+      scoreText.textContent = `${r.score}/100`;
+      strengthText.textContent = r.strength;
+      strengthText.className = `strength-text c-${r.cls}`;
+      entropyText.textContent = `Entropy: ${r.entropy} bits`;
+
+      const checkLabels = [
+        ["length",    "8+ characters"],
+        ["uppercase", "Uppercase"],
+        ["lowercase", "Lowercase"],
+        ["digits",    "Numbers"],
+        ["special",   "Special chars"],
+        ["notCommon", "Not common"],
+      ];
+      checksEl.innerHTML = checkLabels.map(([k, label]) =>
+        `<div class="check-item ${r.checks[k] ? "pass" : "fail"}">${r.checks[k] ? "✅" : "❌"} ${label}</div>`
+      ).join("");
+
+      feedbackList.innerHTML = r.feedback.map(f => `<li>${f}</li>`).join("");
+    });
+
+    pwInput.focus();
+  </script>
+</body>
+</html>

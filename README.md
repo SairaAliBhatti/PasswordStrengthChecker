@@ -2,10 +2,6 @@
 
 > A Python tool that analyzes passwords against multiple security criteria — length, character variety, entropy, common password lists, and pattern detection — and returns a strength score with actionable feedback.
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
-![Tests](https://img.shields.io/badge/Tests-26%20passing-brightgreen)
-![License](https://img.shields.io/badge/License-MIT-green)
-
 ---
 
 ## 🤔 Why This Exists
